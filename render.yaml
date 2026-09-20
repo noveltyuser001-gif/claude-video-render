@@ -1,0 +1,56 @@
+services:
+  - type: web
+    name: claude-video-render
+    env: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /up
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: APP_KEY
+        sync: false
+      - key: APP_URL
+        sync: false
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DB_HOST
+        fromDatabase:
+          name: claude-video-render-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: claude-video-render-db
+          property: port
+      - key: DB_DATABASE
+        fromDatabase:
+          name: claude-video-render-db
+          property: database
+      - key: DB_USERNAME
+        fromDatabase:
+          name: claude-video-render-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: claude-video-render-db
+          property: password
+      - key: SESSION_DRIVER
+        value: file
+      - key: CACHE_STORE
+        value: file
+      - key: QUEUE_CONNECTION
+        value: sync
+      - key: LOG_CHANNEL
+        value: stderr
+      - key: LOVABLE_NHS_PORTAL_1_URL
+        sync: false
+      - key: LOVABLE_NHS_PORTAL_1_KEY
+        sync: false
+
+databases:
+  - name: claude-video-render-db
+    plan: free
+    databaseName: claude_video_render
+    user: claude_video_render

@@ -1,0 +1,17 @@
+.git
+.env
+vendor
+node_modules
+storage/app/videos
+storage/app/private/videos
+storage/app/public/generated
+storage/app/public/uploads
+storage/app/images
+storage/app/thumbnails
+storage/app/assets
+storage/app/deloutput.mp4
+storage/logs/*.log
+storage/framework/views/*.php
+bootstrap/cache/*.php
+database/*.sqlite
+tests
