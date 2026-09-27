@@ -18,7 +18,7 @@ class RendererManager
 
     public function __construct()
     {
-        $this->maxOutputWidth = (int) env('RENDER_MAX_OUTPUT_WIDTH', 1280);
+        $this->maxOutputWidth = (int) env('RENDER_MAX_OUTPUT_WIDTH', 640);
     }
 
     public function render($templateId, $data)
@@ -282,11 +282,11 @@ class RendererManager
         // actually blows past a 512MB container limit — not the overlay
         // work itself.
         $command[] = '-preset';
-        $command[] = 'veryfast';
+        $command[] = 'ultrafast';
         $command[] = '-x264-params';
-        $command[] = 'rc-lookahead=10:ref=1';
+        $command[] = 'rc-lookahead=0:ref=1';
         $command[] = '-threads';
-        $command[] = '2';
+        $command[] = '1';
 
         $command[] = '-c:a';
         $command[] = 'aac';
