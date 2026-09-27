@@ -16,26 +16,19 @@ services:
         sync: false
       - key: DB_CONNECTION
         value: pgsql
+      # Points at a dedicated Supabase Postgres project (not Render's own
+      # managed Postgres, and not the nhs-portal-1 Supabase project) —
+      # set these directly in the Render dashboard, never committed here.
       - key: DB_HOST
-        fromDatabase:
-          name: claude-video-render-db
-          property: host
+        sync: false
       - key: DB_PORT
-        fromDatabase:
-          name: claude-video-render-db
-          property: port
+        value: "5432"
       - key: DB_DATABASE
-        fromDatabase:
-          name: claude-video-render-db
-          property: database
+        value: postgres
       - key: DB_USERNAME
-        fromDatabase:
-          name: claude-video-render-db
-          property: user
+        sync: false
       - key: DB_PASSWORD
-        fromDatabase:
-          name: claude-video-render-db
-          property: password
+        sync: false
       - key: SESSION_DRIVER
         value: file
       - key: CACHE_STORE
@@ -48,9 +41,3 @@ services:
         sync: false
       - key: LOVABLE_NHS_PORTAL_1_KEY
         sync: false
-
-databases:
-  - name: claude-video-render-db
-    plan: free
-    databaseName: claude_video_render
-    user: claude_video_render
