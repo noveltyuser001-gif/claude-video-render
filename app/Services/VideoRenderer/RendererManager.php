@@ -8,6 +8,19 @@ use Symfony\Component\Process\Process;
 
 class RendererManager
 {
+    /**
+     * Cap on the final encoded video's width (height scales to match,
+     * even dims via -2). Keeps libx264's memory use low enough to fit
+     * Render's free-tier 512MB limit; override via env if hosted with
+     * more RAM.
+     */
+    protected int $maxOutputWidth;
+
+    public function __construct()
+    {
+        $this->maxOutputWidth = (int) env('RENDER_MAX_OUTPUT_WIDTH', 1280);
+    }
+
     public function render($templateId, $data)
     {
         // Allow FFmpeg to run longer than PHP's default 60 seconds
@@ -229,6 +242,17 @@ class RendererManager
         }
 
         /*
+         * Always downscale the final composited frame before encoding.
+         * Overlay/text math above still happens in the template's real
+         * coordinate space, so this only shrinks what libx264 has to
+         * buffer — the biggest driver of memory use at 1080p, which is
+         * enough to exceed Render's free-tier 512MB limit on its own.
+         */
+        $scaledLabel = 'scaledv';
+        $filterParts[] = "[{$lastLabel}]scale='min({$this->maxOutputWidth},iw)':-2[{$scaledLabel}]";
+        $lastLabel = $scaledLabel;
+
+        /*
          * ============================================
          * 7. BUILD FFMPEG COMMAND
          * ============================================
@@ -236,17 +260,25 @@ class RendererManager
 
         $command = array_merge(['ffmpeg', '-y'], $inputs);
 
-        if (!empty($filterParts)) {
-            $command[] = '-filter_complex';
-            $command[] = implode(';', $filterParts);
-            $command[] = '-map';
-            $command[] = "[{$lastLabel}]";
-            $command[] = '-map';
-            $command[] = '0:a?';
-        }
+        $command[] = '-filter_complex';
+        $command[] = implode(';', $filterParts);
+        $command[] = '-map';
+        $command[] = "[{$lastLabel}]";
+        $command[] = '-map';
+        $command[] = '0:a?';
 
         $command[] = '-c:v';
         $command[] = 'libx264';
+        // Low-memory encoder settings: "medium" (the default) buffers
+        // dozens of lookahead frames at full resolution, which is what
+        // actually blows past a 512MB container limit — not the overlay
+        // work itself.
+        $command[] = '-preset';
+        $command[] = 'veryfast';
+        $command[] = '-x264-params';
+        $command[] = 'rc-lookahead=10:ref=1';
+        $command[] = '-threads';
+        $command[] = '2';
 
         $command[] = '-c:a';
         $command[] = 'aac';
