@@ -258,7 +258,15 @@ class RendererManager
          * ============================================
          */
 
-        $command = array_merge(['ffmpeg', '-y'], $inputs);
+        // Run FFmpeg at low OS scheduling priority. On a CPU-quota-limited
+        // host (e.g. Render's free tier) a full-priority encode can starve
+        // the container's own health-check response of CPU time entirely,
+        // which gets the instance killed mid-render. `nice` has no effect
+        // on correctness or output — only how the kernel schedules it
+        // against other processes — and isn't available on Windows, so
+        // it's skipped there.
+        $prefix = stripos(PHP_OS, 'WIN') === 0 ? [] : ['nice', '-n', '19'];
+        $command = array_merge($prefix, ['ffmpeg', '-y'], $inputs);
 
         $command[] = '-filter_complex';
         $command[] = implode(';', $filterParts);
