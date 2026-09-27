@@ -30,4 +30,10 @@ EXPOSE 8080
 # Render sets $PORT at runtime; migrate is safe to re-run (Laravel skips
 # already-applied migrations), and storage:link may already exist on a
 # re-deploy of the same instance.
+#
+# PHP_CLI_SERVER_WORKERS spawns multiple worker processes (needs pcntl,
+# installed above) so a long-running render request doesn't block the
+# health-check ping — the built-in server is single-threaded otherwise,
+# and Render was killing the instance mid-render thinking it had hung.
+ENV PHP_CLI_SERVER_WORKERS=4
 CMD ["sh", "-c", "php artisan migrate --force || true; php artisan storage:link || true; php artisan serve --host=0.0.0.0 --port=${PORT:-8080}"]
