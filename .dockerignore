@@ -3,7 +3,6 @@
 vendor
 node_modules
 storage/app/videos
-storage/app/private/videos
 storage/app/public/generated
 storage/app/public/uploads
 storage/app/images
