@@ -4,7 +4,12 @@ services:
     env: docker
     plan: free
     dockerfilePath: ./Dockerfile
-    healthCheckPath: /up
+    # No healthCheckPath: Render's HTTP health check needs the app to
+    # actually respond, which a CPU-starved container can't do during a
+    # render (confirmed — ultrafast/640p/single-thread still timed out).
+    # The default TCP-level check (is the port open) doesn't depend on
+    # the app getting scheduled at all, since the OS accepts the
+    # connection into its backlog regardless of CPU availability.
     envVars:
       - key: APP_ENV
         value: production
