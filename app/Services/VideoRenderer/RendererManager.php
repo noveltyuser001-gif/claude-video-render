@@ -15,10 +15,19 @@ class RendererManager
      * more RAM.
      */
     protected int $maxOutputWidth;
+    protected string $x264Preset;
+    protected string $x264Params;
+    protected string $threads;
 
     public function __construct()
     {
+        // Defaults are tuned for Render's free-tier 512MB/thin-CPU box.
+        // Environments with real CPU (e.g. local dev) can override these
+        // via .env for better quality without touching code.
         $this->maxOutputWidth = (int) env('RENDER_MAX_OUTPUT_WIDTH', 640);
+        $this->x264Preset = env('RENDER_X264_PRESET', 'ultrafast');
+        $this->x264Params = env('RENDER_X264_PARAMS', 'rc-lookahead=0:ref=1');
+        $this->threads = (string) env('RENDER_FFMPEG_THREADS', 1);
     }
 
     public function render($templateId, $data)
@@ -282,11 +291,11 @@ class RendererManager
         // actually blows past a 512MB container limit — not the overlay
         // work itself.
         $command[] = '-preset';
-        $command[] = 'ultrafast';
+        $command[] = $this->x264Preset;
         $command[] = '-x264-params';
-        $command[] = 'rc-lookahead=0:ref=1';
+        $command[] = $this->x264Params;
         $command[] = '-threads';
-        $command[] = '1';
+        $command[] = $this->threads;
 
         $command[] = '-c:a';
         $command[] = 'aac';
