@@ -30,7 +30,7 @@ class RendererManager
         $this->threads = (string) env('RENDER_FFMPEG_THREADS', 1);
     }
 
-    public function render($templateId, $data)
+    public function render($templateId, $data, ?string $outputName = null)
     {
         // Allow FFmpeg to run longer than PHP's default 60 seconds
         set_time_limit(0);
@@ -100,7 +100,11 @@ class RendererManager
             );
         }
 
-        $output = $outputDir . '/video.mp4';
+        // A unique filename per render prevents one job's output from
+        // overwriting another's before it's been fetched — the old
+        // hardcoded "video.mp4" was a real bug once renders run async.
+        $filename = $outputName ?: ('video_' . uniqid() . '.mp4');
+        $output = $outputDir . '/' . $filename;
 
         /*
          * ============================================
@@ -351,7 +355,7 @@ class RendererManager
 
             'video_url' =>
                 url(
-                    'storage/generated/video.mp4'
+                    'storage/generated/' . $filename
                 ),
         ];
     }

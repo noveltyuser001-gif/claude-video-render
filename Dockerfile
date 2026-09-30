@@ -32,8 +32,12 @@ EXPOSE 8080
 # re-deploy of the same instance.
 #
 # PHP_CLI_SERVER_WORKERS spawns multiple worker processes (needs pcntl,
-# installed above) so a long-running render request doesn't block the
-# health-check ping — the built-in server is single-threaded otherwise,
-# and Render was killing the instance mid-render thinking it had hung.
-ENV PHP_CLI_SERVER_WORKERS=4
-CMD ["sh", "-c", "php artisan migrate --force || true; php artisan storage:link || true; php artisan serve --host=0.0.0.0 --port=${PORT:-8080}"]
+# installed above) so the API stays responsive under normal traffic.
+# Renders are now queued (App\Jobs\RenderVideoJob) instead of running
+# inline in the HTTP request, so 2 is plenty — the actual FFmpeg work
+# happens in the separate queue:work process below, which naturally
+# processes one render at a time (exactly the safety limit a thin
+# free-tier CPU/RAM box needs). The restart loop keeps the worker alive
+# if a render ever crashes it.
+ENV PHP_CLI_SERVER_WORKERS=2
+CMD ["sh", "-c", "php artisan migrate --force || true; php artisan storage:link || true; (while true; do php artisan queue:work --tries=1 --timeout=280 --sleep=3; sleep 2; done) & php artisan serve --host=0.0.0.0 --port=${PORT:-8080}"]

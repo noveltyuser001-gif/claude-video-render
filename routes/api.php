@@ -12,3 +12,7 @@ Route::post('/render-video', [
     VideoRenderController::class,
     'render'
 ]);
+Route::get('/render-jobs/{id}', [
+    VideoRenderController::class,
+    'status'
+]);

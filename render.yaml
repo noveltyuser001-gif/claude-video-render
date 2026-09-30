@@ -39,7 +39,10 @@ services:
       - key: CACHE_STORE
         value: file
       - key: QUEUE_CONNECTION
-        value: sync
+        value: database
+      # Render's free CPU quota; RendererManager falls back to these low-
+      # resource encoder settings when unset, so nothing to add here —
+      # override only if this ever moves to a bigger plan.
       - key: LOG_CHANNEL
         value: stderr
       - key: LOVABLE_NHS_PORTAL_1_URL
