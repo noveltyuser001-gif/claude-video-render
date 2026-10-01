@@ -40,9 +40,19 @@ services:
         value: file
       - key: QUEUE_CONNECTION
         value: database
-      # Render's free CPU quota; RendererManager falls back to these low-
-      # resource encoder settings when unset, so nothing to add here —
-      # override only if this ever moves to a bigger plan.
+      # RendererManager's own default (when these are unset) is now
+      # "keep source quality" — safe for Oracle/local with real CPU, but
+      # would reproduce the OOM/health-check-timeout crashes we hit on
+      # Render's free tier. Set explicitly here instead of relying on a
+      # Render-specific code default.
+      - key: RENDER_MAX_OUTPUT_WIDTH
+        value: "640"
+      - key: RENDER_X264_PRESET
+        value: ultrafast
+      - key: RENDER_X264_PARAMS
+        value: "rc-lookahead=0:ref=1"
+      - key: RENDER_FFMPEG_THREADS
+        value: "1"
       - key: LOG_CHANNEL
         value: stderr
       - key: LOVABLE_NHS_PORTAL_1_URL

@@ -17,11 +17,18 @@ class VideoRenderController extends Controller
      */
     public function render(Request $request)
     {
-        // Pass every request field through as-is so any template's
+        // Optional per-request quality override. If none of these are
+        // passed, RendererManager falls back to this server's configured
+        // default, and if that's unset too, to true source quality — no
+        // forced downscaling. Kept separate from $data since these are
+        // encoder settings, not template placeholder fields.
+        $options = $request->only(['max_width', 'preset', 'x264_params', 'threads']);
+
+        // Pass every other request field through as-is so any template's
         // elements (doctor_name, hospital_name, speciality, greeting_text,
         // etc.) can find their data by field name, without the controller
         // needing to know a template's specific fields in advance.
-        $data = $request->except(['template_id', 'photo']);
+        $data = $request->except(['template_id', 'photo', 'max_width', 'preset', 'x264_params', 'threads']);
 
         if ($request->hasFile('photo')) {
             $data['photo'] = $request->file('photo')->store('uploads', 'public');
@@ -39,7 +46,8 @@ class VideoRenderController extends Controller
         RenderVideoJob::dispatch(
             $job->id,
             $request->input('template_id'),
-            $data
+            $data,
+            $options
         );
 
         return response()->json([

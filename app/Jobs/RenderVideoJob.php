@@ -22,7 +22,8 @@ class RenderVideoJob implements ShouldQueue
     public function __construct(
         public int $renderJobId,
         public $templateId,
-        public array $data
+        public array $data,
+        public array $options = []
     ) {
     }
 
@@ -42,7 +43,7 @@ class RenderVideoJob implements ShouldQueue
         try {
             $outputName = 'video_job' . $job->id . '_' . uniqid() . '.mp4';
 
-            $result = $manager->render($this->templateId, $this->data, $outputName);
+            $result = $manager->render($this->templateId, $this->data, $outputName, $this->options);
 
             $job->update([
                 'status' => 'completed',

@@ -21,19 +21,36 @@ class RendererManager
 
     public function __construct()
     {
-        // Defaults are tuned for Render's free-tier 512MB/thin-CPU box.
-        // Environments with real CPU (e.g. local dev) can override these
-        // via .env for better quality without touching code.
-        $this->maxOutputWidth = (int) env('RENDER_MAX_OUTPUT_WIDTH', 640);
-        $this->x264Preset = env('RENDER_X264_PRESET', 'ultrafast');
-        $this->x264Params = env('RENDER_X264_PARAMS', 'rc-lookahead=0:ref=1');
-        $this->threads = (string) env('RENDER_FFMPEG_THREADS', 1);
+        // Baseline (no env var, no per-request override) is "keep source
+        // quality" — 0 means no resize, 'medium'/'' are FFmpeg's own
+        // normal defaults. A resource-limited host (e.g. Render's free
+        // tier) sets RENDER_* env vars explicitly in its own render.yaml
+        // rather than relying on a code-level default, so this class
+        // stays correct generically rather than Render-specific.
+        $this->maxOutputWidth = (int) env('RENDER_MAX_OUTPUT_WIDTH', 0);
+        $this->x264Preset = env('RENDER_X264_PRESET', 'medium');
+        $this->x264Params = env('RENDER_X264_PARAMS', '');
+        $this->threads = (string) env('RENDER_FFMPEG_THREADS', 0);
     }
 
-    public function render($templateId, $data, ?string $outputName = null)
+    /**
+     * $options optionally overrides, for this one render only:
+     *   max_width    (int)    0 = keep source resolution
+     *   preset       (string) libx264 preset, e.g. "ultrafast".."veryslow"
+     *   x264_params  (string) raw -x264-params value
+     *   threads      (int)    0 = let ffmpeg choose
+     * Anything not passed falls back to this instance's env-configured
+     * value, and if that's not set either, to source-quality defaults.
+     */
+    public function render($templateId, $data, ?string $outputName = null, array $options = [])
     {
         // Allow FFmpeg to run longer than PHP's default 60 seconds
         set_time_limit(0);
+
+        $effectiveMaxWidth = isset($options['max_width']) ? (int) $options['max_width'] : $this->maxOutputWidth;
+        $effectivePreset = $options['preset'] ?? $this->x264Preset;
+        $effectiveParams = $options['x264_params'] ?? $this->x264Params;
+        $effectiveThreads = (string) ($options['threads'] ?? $this->threads);
 
         /*
          * ============================================
@@ -255,15 +272,17 @@ class RendererManager
         }
 
         /*
-         * Always downscale the final composited frame before encoding.
-         * Overlay/text math above still happens in the template's real
-         * coordinate space, so this only shrinks what libx264 has to
-         * buffer — the biggest driver of memory use at 1080p, which is
-         * enough to exceed Render's free-tier 512MB limit on its own.
+         * Downscale the final composited frame before encoding, only if
+         * a cap is actually configured (max_width > 0). Overlay/text
+         * math above still happens in the template's real coordinate
+         * space either way. Skipping this when uncapped keeps the
+         * output at true source resolution/quality.
          */
-        $scaledLabel = 'scaledv';
-        $filterParts[] = "[{$lastLabel}]scale='min({$this->maxOutputWidth},iw)':-2[{$scaledLabel}]";
-        $lastLabel = $scaledLabel;
+        if ($effectiveMaxWidth > 0) {
+            $scaledLabel = 'scaledv';
+            $filterParts[] = "[{$lastLabel}]scale='min({$effectiveMaxWidth},iw)':-2[{$scaledLabel}]";
+            $lastLabel = $scaledLabel;
+        }
 
         /*
          * ============================================
@@ -281,25 +300,29 @@ class RendererManager
         $prefix = stripos(PHP_OS, 'WIN') === 0 ? [] : ['nice', '-n', '19'];
         $command = array_merge($prefix, ['ffmpeg', '-y'], $inputs);
 
-        $command[] = '-filter_complex';
-        $command[] = implode(';', $filterParts);
-        $command[] = '-map';
-        $command[] = "[{$lastLabel}]";
-        $command[] = '-map';
-        $command[] = '0:a?';
+        if (!empty($filterParts)) {
+            $command[] = '-filter_complex';
+            $command[] = implode(';', $filterParts);
+            $command[] = '-map';
+            $command[] = "[{$lastLabel}]";
+            $command[] = '-map';
+            $command[] = '0:a?';
+        }
 
         $command[] = '-c:v';
         $command[] = 'libx264';
-        // Low-memory encoder settings: "medium" (the default) buffers
-        // dozens of lookahead frames at full resolution, which is what
-        // actually blows past a 512MB container limit — not the overlay
-        // work itself.
         $command[] = '-preset';
-        $command[] = $this->x264Preset;
-        $command[] = '-x264-params';
-        $command[] = $this->x264Params;
-        $command[] = '-threads';
-        $command[] = $this->threads;
+        $command[] = $effectivePreset;
+
+        if ($effectiveParams !== '') {
+            $command[] = '-x264-params';
+            $command[] = $effectiveParams;
+        }
+
+        if ($effectiveThreads !== '0') {
+            $command[] = '-threads';
+            $command[] = $effectiveThreads;
+        }
 
         $command[] = '-c:a';
         $command[] = 'aac';
