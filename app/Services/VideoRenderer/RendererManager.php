@@ -353,9 +353,12 @@ class RendererManager
         return [
             'status' => 'success',
 
+            // Served via api/videos/{filename}, not the public/storage
+            // symlink — the symlink bypasses Laravel (and its CORS
+            // middleware) entirely under PHP's built-in server.
             'video_url' =>
                 url(
-                    'storage/generated/' . $filename
+                    'api/videos/' . $filename
                 ),
         ];
     }

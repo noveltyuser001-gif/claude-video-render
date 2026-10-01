@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 use App\Jobs\RenderVideoJob;
 use App\Models\RenderJob;
@@ -68,5 +69,29 @@ class VideoRenderController extends Controller
             'started_at' => $job->started_at,
             'completed_at' => $job->completed_at,
         ]);
+    }
+
+    /**
+     * Serve a generated video through the app (not the public/storage
+     * symlink) so CORS headers actually apply — PHP's built-in server
+     * (used locally and on Render) serves existing static files
+     * directly, bypassing Laravel's middleware entirely, which silently
+     * dropped CORS for anything under storage/generated/.
+     */
+    public function serveVideo(string $filename)
+    {
+        if (!preg_match('/^[a-zA-Z0-9_\-]+\.mp4$/', $filename)) {
+            abort(404);
+        }
+
+        $path = 'generated/' . $filename;
+
+        if (!Storage::disk('public')->exists($path)) {
+            abort(404);
+        }
+
+        return response(Storage::disk('public')->get($path), 200)
+            ->header('Content-Type', 'video/mp4')
+            ->header('Access-Control-Allow-Origin', '*');
     }
 }

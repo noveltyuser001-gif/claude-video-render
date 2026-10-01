@@ -16,3 +16,7 @@ Route::get('/render-jobs/{id}', [
     VideoRenderController::class,
     'status'
 ]);
+Route::get('/videos/{filename}', [
+    VideoRenderController::class,
+    'serveVideo'
+]);
